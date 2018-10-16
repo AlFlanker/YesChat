@@ -2,6 +2,7 @@ package SimpleYesChat.YesChat.Logic.Requests;
 
 import SimpleYesChat.YesChat.Logic.Requests.Enums.RequestType;
 
+
 public class Request {
     private RequestType type;
 

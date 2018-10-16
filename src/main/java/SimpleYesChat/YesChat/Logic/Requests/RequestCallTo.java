@@ -1,6 +1,6 @@
 package SimpleYesChat.YesChat.Logic.Requests;
 
-public class ReauestCallTo extends Request{
+public class RequestCallTo extends Request{
     private String to;
     private String roomID;
 
@@ -20,6 +20,6 @@ public class ReauestCallTo extends Request{
         this.roomID = roomID;
     }
 
-    public ReauestCallTo() {
+    public RequestCallTo() {
     }
 }

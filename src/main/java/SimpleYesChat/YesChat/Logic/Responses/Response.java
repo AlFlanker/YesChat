@@ -1,16 +1,17 @@
 package SimpleYesChat.YesChat.Logic.Responses;
 
+import SimpleYesChat.YesChat.Logic.Responses.Enums.ResponseStatus;
 import SimpleYesChat.YesChat.Logic.Responses.Enums.ResponseType;
 
 public class Response {
     private ResponseType type;
-    private String status;
+    private ResponseStatus status;
 
-    public String getStatus() {
+    public ResponseStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(ResponseStatus status) {
         this.status = status;
     }
 
