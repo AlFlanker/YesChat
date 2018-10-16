@@ -11,6 +11,7 @@ import java.util.concurrent.Executor;
 
 @EnableAsync
 @SpringBootApplication
+
 public class YesChatApplication {
 
 	public static void main(String[] args) {

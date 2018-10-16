@@ -4,14 +4,46 @@
     <meta charset="UTF-8">
     <title>YesChat</title>
     <!-- версия для разработки, отображает полезные предупреждения в консоли -->
-    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vue-resource@1.5.1"></script>
+
     <title>Hello WebSocket</title>
     <link href="/webjars/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <!--<link href="/main.css" rel="stylesheet">-->
     <script src="/webjars/jquery/jquery.min.js"></script>
+    <script>
+        function connect() {
+            ws = new WebSocket('ws://localhost:8080/test');
+            ws.onmessage = function(data){
+                showGreeting(data.data);
+            }
+            // setConnected(true);
+        }
 
-    <script src="js/app.js"></script>
+        function disconnect() {
+            if (ws != null) {
+                ws.close();
+            }
+            setConnected(false);
+            console.log("Disconnected");
+        }
+
+        function sendName() {
+            ws.send($("#name").val());
+        }
+
+        function showGreeting(message) {
+            $("#greeting").append("<tr><td>" + message + "</td></tr>");
+        }
+        $(function () {
+            $("form").on('submit', function (e) {
+                e.preventDefault();
+            });
+            $( "#connect" ).click(function() { connect(); });
+            $( "#disconnect" ).click(function() { disconnect(); });
+            $( "#send" ).click(function() { sendName(); });
+        });
+    </script>
+
+
 </head>
 <body>
 <h3>Hello, usr</h3>
@@ -52,6 +84,7 @@
         </div>
     </div>
 </div>
+
 <!--<script src="/js/main.js"></script>-->
 <!--<script src="/js/app.js"></script>-->
 </body>

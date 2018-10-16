@@ -4,6 +4,7 @@ import SimpleYesChat.YesChat.RequestsAndResponse.Requests.RequestAuth;
 import SimpleYesChat.YesChat.RequestsAndResponse.Requests.RequestCall;
 import SimpleYesChat.YesChat.RequestsAndResponse.Response.ResponseID;
 import SimpleYesChat.YesChat.UserData.Contacters;
+import SimpleYesChat.YesChat.UserData.UserData;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -33,13 +34,14 @@ import java.util.stream.Collectors;
 public class WebSocketUtil {
     
     private static final Logger log = LoggerFactory.getLogger(WebSocketUtil.class);
-    Map<WebSocketSession,String> sessions = new ConcurrentHashMap<>();
-    Map<WebSocketSession,String> idBySession = new ConcurrentHashMap<>();
+
+    Map<WebSocketSession, UserData> sessions_ = new ConcurrentHashMap<>();
+
     private String main_url = "https://ss77.ru/cgi-bin/main.cgi";
     private String data_url = "https://ss77.ru/cgi-bin/choose_cg_yecomm.cgi";
-    public WebSocketUtil(Map<WebSocketSession, String> sessions, Map<WebSocketSession, String> idBySession) {
-        this.sessions = sessions;
-        this.idBySession = idBySession;
+
+    public WebSocketUtil(Map<WebSocketSession,UserData> sessions_){
+        this.sessions_ = sessions_;
     }
 
     private RestTemplate restTemplate = new RestTemplate();
@@ -48,24 +50,27 @@ public class WebSocketUtil {
         objectMapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
         objectMapper.configure(JsonGenerator.Feature.QUOTE_FIELD_NAMES, false);
         String res = message.getPayload();
-        if (StringUtils.isEmpty(sessions.get(session))) {
+        if (StringUtils.isEmpty(sessions_.get(session).getCookies())) {
             try {
                 RequestAuth ra = objectMapper.readValue(res, RequestAuth.class);
                 log.info("session -> " + session.getId() + ", request auth:-> \n" + "login:" + ra.getLogin() + " , pass:" + ra.getPass());
                 String result = isAuth(ra, session);
                 log.info("session -> " + session.getId() + ", request auth result: cookies = " + result);
                 log.info("session -> " + session.getId() + ", request auth result:" +
-                        "user with " + "login:" + ra.getLogin() + " get id->" + idBySession.get(session));
+                        "user with " + "login:" + ra.getLogin() + " get id->" + sessions_.get(session).getId());
                 if (!StringUtils.isEmpty(result)) {
-                    sessions.put(session, result);
+                    UserData ud = sessions_.get(session);
+                    ud.setCookies(result);
+                    sessions_.put(session, ud);
                     if (session.isOpen()) {
-                        session.sendMessage(new TextMessage("{message:\"success\",id:\"" + idBySession.get(session) + "\"}"));
+                        session.sendMessage(new TextMessage("{message:\"success\",id:\"" + sessions_.get(session).getId() + "\"}"));
                         log.info("session -> " + session.getId() + " send message to client " + session.getRemoteAddress() + '\n' +
-                                "message : " + "{message:\"success\",id:\"" + idBySession.get(session) + "\"}");
+                                "message : " + "{message:\"success\",id:\"" + sessions_.get(session).getId() + "\"}");
                         sendAll(session);
                     }
                 } else {
-                    sessions.put(session, "");
+
+                    sessions_.put(session, null);
                     if (session.isOpen()) session.sendMessage(new TextMessage("{message:\"data isn't correct\"}"));
                     log.info("session -> " + session.getId() + " send message to client " + session.getRemoteAddress() + '\n' +
                             "message : " + "{message:\"data isn't correct\"}");
@@ -76,7 +81,7 @@ public class WebSocketUtil {
                     session.sendMessage(new TextMessage("{message:\"error\""));
                     log.info("session -> " + session.getId() + " send message to client " + session.getRemoteAddress() + '\n' +
                             "message : " + "{message:\"error\"");
-                    sessions.remove(session);
+                    sessions_.remove(session);
                     session.close(CloseStatus.BAD_DATA);
                 }
             } catch (NullPointerException e) {
@@ -85,16 +90,17 @@ public class WebSocketUtil {
                     session.sendMessage(new TextMessage("{message:\"error\""));
                     log.info("session -> " + session.getId() + " send message to client " + session.getRemoteAddress() + '\n' +
                             "{message:\"error\"");
-                    sessions.remove(session);
+                    sessions_.remove(session);
                     session.close(CloseStatus.BAD_DATA);
                 }
 
             }
         } else if (res.contains("roomId:")) {
             RequestCall ra = objectMapper.readValue(res, RequestCall.class);
-            if (idBySession.containsValue(ra.getTo())) {
-                idBySession.entrySet().stream()
-                        .filter(entry -> Objects.equals(entry.getValue(), ra.getTo()))
+
+            if (sessions_.entrySet().stream().filter(entry->entry.getValue().getId().equals(ra.getTo())).findFirst().isPresent()) {
+                sessions_.entrySet().stream()
+                        .filter(entry -> Objects.equals(entry.getValue().getId(), ra.getTo()))
                         .findFirst()
                         .map(Map.Entry::getKey).get()
                         .sendMessage(new TextMessage(objectMapper.writeValueAsBytes(ra)));
@@ -107,7 +113,7 @@ public class WebSocketUtil {
             }
         } else if (res.contains("type:")) {
             try {
-                ResponseEntity<String> response = findData(UriComponentsBuilder.fromHttpUrl(data_url), sessions.get(session)).get();
+                ResponseEntity<String> response = findData(UriComponentsBuilder.fromHttpUrl(data_url), sessions_.get(session).getCookies()).get();
                 String r = response.getBody();
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(getContactersWithOnlineField(getContactList(response.getBody()), session))));
                 log.info("session -> " + session.getId() + " send list of contact to client->" + session.getRemoteAddress());
@@ -132,9 +138,11 @@ public class WebSocketUtil {
             HttpHeaders httpHeaders = entity.getHeaders();
             cookies = httpHeaders.getFirst(httpHeaders.SET_COOKIE);
             if (!StringUtils.isEmpty(cookies)) {
-                ResponseEntity<String> tmp = findData(UriComponentsBuilder.fromHttpUrl("https://ss77.ru/cgi-bin/choose_cg1.cgi"), cookies).get();
+                ResponseEntity<String> tmp = findData(UriComponentsBuilder.fromHttpUrl("https://ss77.ru/cgi-bin/main.cgi"), cookies).get();
                 String id = getId(tmp.getBody(), requestAuth.getLogin());
-                idBySession.put(wss, id);
+                UserData ud = sessions_.get(wss);
+                ud.setId(id);
+                sessions_.put(wss, ud);
             }
             return cookies;
         } catch (InterruptedException e) {
@@ -187,19 +195,23 @@ public class WebSocketUtil {
 
     String getId(String list, String email) {
         int pos = list.indexOf("<span>" + email + " .... ID");
-        String srh = list.substring(pos);
-        String tmp = srh.substring(srh.indexOf("ID ") + 3, srh.indexOf("</"));
-        if (StringUtils.isEmpty(tmp)) {
-            return "";
-        } else {
-            return tmp;
+        if(pos>-1) {
+            String srh = list.substring(pos);
+            String tmp = srh.substring(srh.indexOf("ID ") + 3, srh.indexOf("</"));
+
+            if (StringUtils.isEmpty(tmp)) {
+                return "";
+            } else {
+                return tmp;
+            }
         }
+        return "";
     }
 
     List<Contacters> getContactersWithOnlineField(List<Contacters> list, WebSocketSession session) {
-        for (Map.Entry<WebSocketSession, String> entry : idBySession.entrySet()) {
+        for (Map.Entry<WebSocketSession, UserData> entry : sessions_.entrySet()) {
             list.stream()
-                    .filter(a -> a.getId().equals(entry.getValue()))
+                    .filter(a -> a.getId().equals(entry.getValue().getId()))
                     .map(elem -> {
                         elem.setOnline(true);
                         return elem;
@@ -213,18 +225,18 @@ public class WebSocketUtil {
         objectMapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
         objectMapper.configure(JsonGenerator.Feature.QUOTE_FIELD_NAMES, false);
         List<ResponseID> list;
-        for (Map.Entry<WebSocketSession, String> entry : sessions.entrySet()) {
+        for (Map.Entry<WebSocketSession, UserData> entry : sessions_.entrySet()) {
             list = new ArrayList<ResponseID>();
-            if(!StringUtils.isEmpty(entry.getValue())) {
-                for (Map.Entry<WebSocketSession, String> entry2 : idBySession.entrySet()) {
-                    list.add(new ResponseID(entry2.getValue()));
+            if(!StringUtils.isEmpty(entry.getValue().getCookies())) {
+                for (Map.Entry<WebSocketSession, UserData> entry2 : sessions_.entrySet()) {
+                    list.add(new ResponseID(entry2.getValue().getId()));
                 }
             }
 
             if (list.size() > 0 && entry.getKey().isOpen()) {
                 try {
                     entry.getKey().sendMessage(new TextMessage(objectMapper.writeValueAsString(list)));
-                    log.info("session -> " + session.getId() + " send user with id " + idBySession.get(session) + " list of readyToSpeak users\n" + "payload: " + objectMapper.writeValueAsString(list));
+                    log.info("session -> " + session.getId() + " send user with id " + sessions_.get(session).getId() + " list of readyToSpeak users\n" + "payload: " + objectMapper.writeValueAsString(list));
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -235,10 +247,10 @@ public class WebSocketUtil {
     List<ResponseID> getRespID(String currentID) {
         List<ResponseID> list = new ArrayList<ResponseID>();
         ResponseID resId;
-        for (Map.Entry<WebSocketSession, String> entry : idBySession.entrySet()) {
+        for (Map.Entry<WebSocketSession, UserData> entry : sessions_.entrySet()) {
             if (!(entry.getValue().equals(currentID))) {
                 resId = new ResponseID();
-                resId.setId(entry.getValue());
+                resId.setId(entry.getValue().getId());
                 list.add(resId);
             }
         }
