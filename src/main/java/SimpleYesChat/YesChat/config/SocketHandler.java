@@ -1,25 +1,18 @@
 package SimpleYesChat.YesChat.config;
 
-import SimpleYesChat.YesChat.Logic.Requests.Enums.RequestType;
-import SimpleYesChat.YesChat.Logic.Requests.Request;
-import SimpleYesChat.YesChat.Logic.Requests.RequestAuthentication;
-import SimpleYesChat.YesChat.Logic.Requests.RequestCallTo;
-import SimpleYesChat.YesChat.Logic.Requests.RequestGiveMeContacters;
-import SimpleYesChat.YesChat.Logic.Responses.Enums.ResponseStatus;
-import SimpleYesChat.YesChat.Logic.Responses.Enums.ResponseType;
-import SimpleYesChat.YesChat.Logic.Responses.Enums.UserAction;
-import SimpleYesChat.YesChat.Logic.Responses.Response;
-import SimpleYesChat.YesChat.Logic.Responses.ResponseAuthentication;
-import SimpleYesChat.YesChat.Logic.Responses.ResponseCallTo;
-import SimpleYesChat.YesChat.Logic.Responses.ResponseGiveMeContacters;
-import SimpleYesChat.YesChat.RequestsAndResponse.Response.ResponseID;
+
+import SimpleYesChat.YesChat.Messages.YesChatMessages;
+import SimpleYesChat.YesChat.Messages.answers.*;
+import SimpleYesChat.YesChat.Messages.notifications.UsersChangeStatusNotification;
+import SimpleYesChat.YesChat.Messages.requests.AuthRequest;
+import SimpleYesChat.YesChat.Messages.requests.CallToRequest;
+import SimpleYesChat.YesChat.Messages.requests.GetAllUsersRequest;
 import SimpleYesChat.YesChat.Services.RestService;
-import SimpleYesChat.YesChat.UserData.Contacters;
 import SimpleYesChat.YesChat.UserData.UserData;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import org.slf4j.Logger;
@@ -35,15 +28,17 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 @Component
 public class SocketHandler extends AbstractWebSocketHandler {
     private static final String main_url = "https://ss77.ru/cgi-bin/main.cgi";
     private static final String data_url = "https://ss77.ru/cgi-bin/choose_cg_yecomm.cgi";
+
 
     Map<WebSocketSession, UserData> sessions = new ConcurrentHashMap<>();
 
@@ -71,8 +66,33 @@ public class SocketHandler extends AbstractWebSocketHandler {
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message)
             throws IOException {
+        YesChatMessages request;
         log.info("session -> " + session.getId() + ", message: " + message.getPayload());
-        analizeMessage(session, message);
+        if(checkForAuth(session, message)){
+            request= RequestDecoder(message);
+            if(request instanceof AuthRequest){
+                authentication((AuthRequest)request,session);
+            }
+            if(request instanceof GetAllUsersRequest){
+                getAllContacters((GetAllUsersRequest)request,session);
+            }
+            if(request instanceof CallToRequest){
+                callTo((CallToRequest)request,session);
+            }
+            
+        }
+        else {
+             request = RequestDecoder(message);
+            if(request instanceof AuthRequest){
+                authentication((AuthRequest)request,session);
+            }
+            else {
+                Answer answer = new Answer();
+                answer.setDescription("is not authentication");
+                sendResponse(answer,session);
+            }
+            
+        }
 
     }
     @Override
@@ -81,6 +101,7 @@ public class SocketHandler extends AbstractWebSocketHandler {
         UserData userData  = new UserData();
         userData.setCookies("");
         userData.setId("");
+        userData.setAuth(false);
         sessions.put(session,userData);
         log.info("new Session: " + session.toString() );
     }
@@ -116,258 +137,174 @@ public class SocketHandler extends AbstractWebSocketHandler {
     }
 
 
-
-    private void analizeMessage(WebSocketSession session, TextMessage message) throws IOException {
+    private boolean checkForAuth(WebSocketSession session,TextMessage message) {
+        return sessions.get(session).isAuth();
+    }
+    private YesChatMessages RequestDecoder(TextMessage message) throws IOException {
         objectMapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
         objectMapper.configure(JsonGenerator.Feature.QUOTE_FIELD_NAMES, false);
-        String res = message.getPayload();
-        Object request = new Request();
-        try {
-             request = objectMapper.readValue(message.getPayload(), Map.class);
-        }
-        catch (UnrecognizedPropertyException | JsonParseException exception ){
-            Response response = new Response();
-            response.setStatus(ResponseStatus.Failure);
-            response.setType(ResponseType.BadRequest);
-            if (session.isOpen()) {
-                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(response)));
-            }
-            return;
-        }
-
-        switch (RequestType.valueOf((String) ((Map) request).get((Object)"type"))){
-            case Auth:
-
-                    try {
-                        RequestAuthentication ra = objectMapper.readValue(res, RequestAuthentication.class);
-                        log.info("session -> " + session.getId() + ", request auth:-> \n" + "login:" + ra.getLogin() + " , pass:" + ra.getPass());
-                        String result = isAuth(ra, session);
-                        log.info("session -> " + session.getId() + ", request auth result: cookies = " + result);
-                        log.info("session -> " + session.getId() + ", request auth result:" +
-                                "user with " + "login:" + ra.getLogin() + " get id->" + sessions.get(session).getId());
-                        if (!StringUtils.isEmpty(result)) {
-                            UserData ud = sessions.get(session);
-                            ud.setCookies(result);
-                            sessions.put(session, ud);
-                            if (session.isOpen()) {
-                                ResponseAuthentication resAuth = new ResponseAuthentication();
-                                resAuth.setStatus(ResponseStatus.Success);
-                                resAuth.setType(ResponseType.AuthResult);
-                                resAuth.setId(sessions.get(session).getId());
-                                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(resAuth)));
-                                log.info("session -> " + session.getId() + " send message to client " + session.getRemoteAddress() + '\n' +
-                                        "message : " + "{message:\"success\",id:\"" + sessions.get(session).getId() + "\"}");
-                                sendAll(session);
-                            }
-                        } else {
-                            ResponseAuthentication resAuth = new ResponseAuthentication();
-                            resAuth.setStatus(ResponseStatus.Failure);
-                            resAuth.setType(ResponseType.AuthResult);
-                            resAuth.setId("");
-                            sessions.put(session, null);
-                            if (session.isOpen()) session.sendMessage(new TextMessage(objectMapper.writeValueAsString(resAuth)));
-                            log.info("session -> " + session.getId() + " send message to client " + session.getRemoteAddress() + '\n' +
-                                    "message : " + "{message:\"data isn't correct\"}");
-                        }
-                    } catch (JsonParseException | NullPointerException e) {
-                        ResponseAuthentication resAuth = new ResponseAuthentication();
-                        resAuth.setStatus(ResponseStatus.Failure);
-                        resAuth.setType(ResponseType.BadData);
-                        resAuth.setId("");
-                        sessions.put(session, null);
-                        if (session.isOpen()) {session.sendMessage(new TextMessage(objectMapper.writeValueAsString(resAuth)));}
-
-                    }
-
-                break;
-            case getContactres:
-                if(!CheckAuth(session)){
-                    break;
-                }
-                try {
-                        RequestGiveMeContacters giveMeContacters = objectMapper.readValue(message.getPayload(),RequestGiveMeContacters.class);
-                        ResponseEntity<String> response = restService.findData(UriComponentsBuilder.fromHttpUrl(data_url), sessions.get(session).getCookies()).get();
-                        String r = response.getBody();
-                        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(getContactersWithOnlineField(getContactList(response.getBody()), session))));
-                        log.info("session -> " + session.getId() + " send list of contact to client->" + session.getRemoteAddress());
-                    }  catch (UnrecognizedPropertyException | JsonParseException exception ){
-                        ResponseGiveMeContacters responseGiveMeContacters = new ResponseGiveMeContacters();
-                        responseGiveMeContacters.setStatus(ResponseStatus.Failure);
-                        responseGiveMeContacters.setType(ResponseType.BadData);
-                            if (session.isOpen()) {
-                                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(responseGiveMeContacters)));
-                            }
-
-                    } catch (InterruptedException | ExecutionException e) {
-                        ResponseGiveMeContacters responseGiveMeContacters = new ResponseGiveMeContacters();
-                        responseGiveMeContacters.setStatus(ResponseStatus.Failure);
-                        responseGiveMeContacters.setType(ResponseType.BadRequest);
-                        if (session.isOpen()) {
-                            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(responseGiveMeContacters)));
-                        }
-                    }
-
-                break;
-            case Call:
-                if(!CheckAuth(session)){
-                    break;
-                }
-                try {
-                    RequestCallTo ra = objectMapper.readValue(res, RequestCallTo.class);
-                    if (sessions.entrySet().stream().filter(entry -> entry.getValue().getId().equals(ra.getTo())).findFirst().isPresent()) {
-                        sessions.entrySet().stream()
-                                .filter(entry -> Objects.equals(entry.getValue().getId(), ra.getTo()))
-                                .findFirst()
-                                .map(Map.Entry::getKey).get()
-                                .sendMessage(new TextMessage(objectMapper.writeValueAsBytes(ra)));
-                        log.info("session -> " + session.getId() + " get message with RoomID from client->" + session.getRemoteAddress());
-
-                    } else {
-                        ResponseCallTo responseCallTo = new ResponseCallTo();
-                        responseCallTo.setStatus(ResponseStatus.Failure);
-                        responseCallTo.setType(ResponseType.CallResult);
-                        responseCallTo.setAction(UserAction.Offline);
-                        if (session.isOpen()) {
-                            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(responseCallTo)));
-                        }
-
-                        log.info("session -> " + session.getId() + " send message to client " + session.getRemoteAddress() + '\n' +
-                                "{message:\"user offline\"");
-                    }
-                }
-                catch (UnrecognizedPropertyException | JsonParseException exception ){
-                    ResponseCallTo responseCallTo = new ResponseCallTo();
-                    responseCallTo.setStatus(ResponseStatus.Failure);
-                    responseCallTo.setType(ResponseType.CallResult);
-                    responseCallTo.setAction(UserAction.BadData);
-                    if (session.isOpen()) {
-                        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(responseCallTo)));
-                    }
-
-                }
-                break;
-            case CallDown:
-                if(!CheckAuth(session)){
-                    break;
-                }
-                break;
-        }
-
-
-
+        YesChatMessages request = objectMapper.readValue(message.getPayload(),YesChatMessages.class);
+        return request;
 
     }
-
-    private boolean CheckAuth(WebSocketSession session) throws IOException {
-        if (StringUtils.isEmpty(sessions.get(session).getCookies())) {
-            Response response = new Response();
-            response.setStatus(ResponseStatus.Failure);
-            response.setType(ResponseType.AuthorizationFailed);
-            if (session.isOpen()) {
-                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(response)));
-            }
-            return false;
-        }
-        return true;
-    }
-
-    private String isAuth(RequestAuthentication requestAuth, WebSocketSession wss) {
-        String cookies;
+    private void authentication(AuthRequest authRequest, WebSocketSession session) {
+        log.info("session -> " + session.getId() + ", request auth:-> \n" + "{\n" + "login:" + authRequest.getLogin() + "\n , pass:" + authRequest.getPass() + "\n}");
+        String cookies = null;
+        AuthAnswer authAnswer ;
         boolean auth = false;
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(main_url);
-        builder.queryParam("email", requestAuth.getLogin());
-        builder.queryParam("passw", requestAuth.getPass());
+        builder.queryParam("email", authRequest.getLogin());
+        builder.queryParam("passw", authRequest.getPass());
         builder.queryParam("INP", "Ввести+данные");
         builder.queryParam("email_check", "");
         try {
             ResponseEntity<String> entity = restService.sendCommand(builder).get();
             HttpHeaders httpHeaders = entity.getHeaders();
             cookies = httpHeaders.getFirst(httpHeaders.SET_COOKIE);
-            if (!StringUtils.isEmpty(cookies)) {
-                ResponseEntity<String> tmp = restService.findData(UriComponentsBuilder.fromHttpUrl("https://ss77.ru/cgi-bin/main.cgi"), cookies).get();
-                String id = getId(tmp.getBody(), requestAuth.getLogin());
-                UserData ud = sessions.get(wss);
-                ud.setId(id);
-                sessions.put(wss, ud);
-            }
-            return cookies;
-        } catch (InterruptedException e) {
+        }
+        catch (InterruptedException e) {
+            log.error("authentication failed");
+            authAnswer = new AuthAnswer();
+            authAnswer.setWhoAmI(sessions.get(session).getId());
+            authAnswer.setSs77Auth(StatusSS77Auth.AUTH_DATA_INCORRECT);
+            sendResponse(authAnswer,session);
             e.printStackTrace();
         } catch (ExecutionException e) {
+            log.error("authentication failed");
+            authAnswer = new AuthAnswer();
+            authAnswer.setWhoAmI(sessions.get(session).getId());
+            authAnswer.setSs77Auth(StatusSS77Auth.AUTH_DATA_INCORRECT);
+            sendResponse(authAnswer,session);
             e.printStackTrace();
         }
-        return "";
+        try {
+            if (!StringUtils.isEmpty(cookies)) {
+                UserData ud = sessions.get(session);
+                ud.setCookies(cookies);
+                ResponseEntity<String> tmp = restService.findData(UriComponentsBuilder.fromHttpUrl("https://ss77.ru/cgi-bin/main.cgi"), cookies).get();
+                String id = Util.getId(tmp.getBody(), authRequest.getLogin());
+                ud.setId(id);
+                ud.setAuth(true);
+                sessions.put(session, ud);
+            }
+
+        } catch (InterruptedException e) {
+            log.error("failed to get id");
+            authAnswer = new AuthAnswer();
+            authAnswer.setWhoAmI(sessions.get(session).getId());
+            authAnswer.setSs77Auth(StatusSS77Auth.SS77_NOT_AVAILABLE);
+            sendResponse(authAnswer,session);
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            log.error("failed to get id");
+            authAnswer = new AuthAnswer();
+            authAnswer.setWhoAmI(sessions.get(session).getId());
+            authAnswer.setSs77Auth(StatusSS77Auth.SS77_NOT_AVAILABLE);
+            sendResponse(authAnswer,session);
+            e.printStackTrace();
+        }
+
+        log.info("session -> " + session.getId() + ", request auth result: cookies = " + cookies);
+        log.info("session -> " + session.getId() + ", request auth result:" +
+                "user with " + "login:" + authRequest.getLogin() + " get id->" + sessions.get(session).getId());
+        authAnswer = new AuthAnswer();
+        authAnswer.setWhoAmI(sessions.get(session).getId());
+        authAnswer.setSs77Auth(StatusSS77Auth.OK);
+        sendResponse(authAnswer,session);
+        sendAll();
     }
 
-    private void sendAll(WebSocketSession session) {
+    private void getAllContacters(GetAllUsersRequest request,WebSocketSession session){
+        AllUsersAnswer allUsersAnswer;
+        try {
+            ResponseEntity<String> response = restService.findData(UriComponentsBuilder.fromHttpUrl(data_url), sessions.get(session).getCookies()).get();
+            String respBody = response.getBody();
+            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(
+                    Util.getContactersWithOnlineField(
+                            Util.getContactList(response.getBody()),sessions))));
+            log.info("session -> " + session.getId() + " send list of contact to client->" + session.getRemoteAddress());
+        }  catch (UnrecognizedPropertyException | JsonParseException exception ){
+            allUsersAnswer = new AllUsersAnswer();
+            allUsersAnswer.setDescription("data from ss77 is incorrect");
+            if (session.isOpen()) {
+                sendResponse(allUsersAnswer,session);
+            }
+
+        } catch (InterruptedException | ExecutionException e) {
+            allUsersAnswer = new AllUsersAnswer();
+            allUsersAnswer.setDescription("WTF?");
+            if (session.isOpen()) {
+                sendResponse(allUsersAnswer,session);
+            }
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    private void callTo( CallToRequest callToRequest,WebSocketSession session){
+        CallUpAnswer callUpAnswer;
+        Answer answer;
+
+        for(Map.Entry<WebSocketSession,UserData> entry:sessions.entrySet()){
+            if(entry.getValue().getId().equals(callToRequest.getToID())){
+                if(entry.getValue().isAuth()){
+                    callUpAnswer = new CallUpAnswer();
+                    callUpAnswer.setFromID(sessions.get(session).getId());
+                    sendResponse(callUpAnswer,entry.getKey());
+                }
+                else{
+                    answer = new Answer();
+                    answer.setDescription("user does't auth");
+                    sendResponse(answer,session);
+                }
+            }
+        }
+    }
+
+
+
+
+    private void sendResponse(YesChatMessages message, WebSocketSession session)  {
         objectMapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
         objectMapper.configure(JsonGenerator.Feature.QUOTE_FIELD_NAMES, false);
-        List<ResponseID> list;
+        if(session.isOpen()){
+            try {
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(message)));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+
+
+
+
+    private void sendAll() {
+        objectMapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
+        objectMapper.configure(JsonGenerator.Feature.QUOTE_FIELD_NAMES, false);
+        UsersChangeStatusNotification notification = new UsersChangeStatusNotification();
+        List<String> list;
         for (Map.Entry<WebSocketSession, UserData> entry : sessions.entrySet()) {
-            list = new ArrayList<ResponseID>();
-            if(!StringUtils.isEmpty(entry.getValue().getCookies())) {
+            list = new ArrayList<String>();
+            if(entry.getValue().isAuth()) {
                 for (Map.Entry<WebSocketSession, UserData> entry2 : sessions.entrySet()) {
-                    list.add(new ResponseID(entry2.getValue().getId()));
+                    if(entry2.getValue().isAuth() && entry2.getKey()!=entry.getKey()) {
+                        list.add((entry2.getValue().getId()));
+                    }
                 }
             }
 
             if (list.size() > 0 && entry.getKey().isOpen()) {
-                try {
-                    entry.getKey().sendMessage(new TextMessage(objectMapper.writeValueAsString(list)));
-                    log.info("session -> " + session.getId() + " send user with id " + sessions.get(session).getId() + " list of readyToSpeak users\n" + "payload: " + objectMapper.writeValueAsString(list));
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                    notification.setListStatus(list);
+//                    entry.getKey().sendMessage(new TextMessage(objectMapper.writeValueAsString(list)));
+                    sendResponse(notification,entry.getKey());
             }
         }
     }
 
-    private String getId(String list, String email) {
-        int pos = list.indexOf("<span>" + email + " .... ID");
-        if(pos>-1) {
-            String srh = list.substring(pos);
-            String tmp = srh.substring(srh.indexOf("ID ") + 3, srh.indexOf("</"));
 
-            if (StringUtils.isEmpty(tmp)) {
-                return "";
-            } else {
-                return tmp;
-            }
-        }
-        return "";
-    }
-
-    private List<Contacters> getContactersWithOnlineField(List<Contacters> list, WebSocketSession session) {
-        for (Map.Entry<WebSocketSession, UserData> entry : sessions.entrySet()) {
-            list.stream()
-                    .filter(a -> a.getId().equals(entry.getValue().getId()))
-                    .map(elem -> {
-                        elem.setOnline(true);
-                        return elem;
-                    })
-                    .collect(Collectors.toList());
-        }
-        return list;
-    }
-
-    private List<Contacters> getContactList(String data) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        List<Contacters> contacters = new ArrayList<Contacters>();
-        String fieldName;
-        try {
-            JsonNode rootNode = objectMapper.readTree(data);
-            JsonNode cont = rootNode.path("contacters");
-            Iterator<String> it = cont.fieldNames();
-            while (it.hasNext()) {
-                fieldName = it.next();
-                Contacters contacter = objectMapper.readValue(cont.get(fieldName).toString(), Contacters.class);
-                contacter.setId(fieldName);
-                contacters.add(contacter);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return contacters;
-    }
 
 }

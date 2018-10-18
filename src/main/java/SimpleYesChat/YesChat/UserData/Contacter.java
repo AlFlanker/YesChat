@@ -1,6 +1,6 @@
 package SimpleYesChat.YesChat.UserData;
 
-public class Contacters {
+public class Contacter {
 //    @JsonIgnore
     private String id;
     private String name;
@@ -67,13 +67,13 @@ public class Contacters {
         isOnline = online;
     }
 
-    public Contacters() {
+    public Contacter() {
 
     }
 
     @Override
     public String toString() {
-        return "Contacters{" +
+        return "Contacter{" +
                 "id='" + id + '\'' +
                 ", name='" + name + '\'' +
                 ", town='" + town + '\'' +

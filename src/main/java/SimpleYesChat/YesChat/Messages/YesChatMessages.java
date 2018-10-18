@@ -1,14 +1,14 @@
 package SimpleYesChat.YesChat.Messages;
 
+import SimpleYesChat.YesChat.Messages.answers.AllUsersAnswer;
+import SimpleYesChat.YesChat.Messages.answers.AuthAnswer;
+import SimpleYesChat.YesChat.Messages.answers.CallUpAnswer;
+import SimpleYesChat.YesChat.Messages.notifications.UsersChangeStatusNotification;
+import SimpleYesChat.YesChat.Messages.requests.AuthRequest;
+import SimpleYesChat.YesChat.Messages.requests.CallToRequest;
+import SimpleYesChat.YesChat.Messages.requests.GetAllUsersRequest;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import ru.vvvresearch.yescommunicator.network.messages.answers.AllUsersAnswer;
-import ru.vvvresearch.yescommunicator.network.messages.answers.AuthAnswer;
-import ru.vvvresearch.yescommunicator.network.messages.answers.CallUpAnswer;
-import ru.vvvresearch.yescommunicator.network.messages.notifications.UsersChangeStatusNotification;
-import ru.vvvresearch.yescommunicator.network.messages.requests.AuthRequest;
-import ru.vvvresearch.yescommunicator.network.messages.requests.CallToRequest;
-import ru.vvvresearch.yescommunicator.network.messages.requests.GetAllUsersRequest;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY)
 @JsonSubTypes({

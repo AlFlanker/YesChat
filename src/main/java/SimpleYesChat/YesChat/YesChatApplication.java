@@ -15,7 +15,9 @@ import java.util.concurrent.Executor;
 public class YesChatApplication {
 
 	public static void main(String[] args) {
+
 		SpringApplication.run(YesChatApplication.class, args);
+
 	}
 
 

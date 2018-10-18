@@ -1,6 +1,8 @@
 package SimpleYesChat.YesChat.Messages.answers;
 
-import ru.vvvresearch.yescommunicator.model.Contacter;
+
+
+import SimpleYesChat.YesChat.UserData.Contacter;
 
 import java.util.List;
 

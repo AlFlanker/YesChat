@@ -1,6 +1,7 @@
 package SimpleYesChat.YesChat.Messages.notifications;
 
-import ru.vvvresearch.yescommunicator.network.messages.YesChatMessages;
+
+import SimpleYesChat.YesChat.Messages.YesChatMessages;
 
 public abstract class Notification extends YesChatMessages {
 }
