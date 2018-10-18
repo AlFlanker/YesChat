@@ -59,7 +59,7 @@ public class SocketHandler extends AbstractWebSocketHandler {
             handleTextMessage(session, (TextMessage) message);
         }
         else if (message instanceof BinaryMessage) {
-            session.close(CloseStatus.NOT_ACCEPTABLE.withReason("Binary messages not supported"));
+            session.close(CloseStatus.NOT_ACCEPTABLE.withReason("Binary Messages not supported"));
         }
         else if (message instanceof PongMessage) {
             handlePongMessage(session, (PongMessage) message);
@@ -77,7 +77,7 @@ public class SocketHandler extends AbstractWebSocketHandler {
     }
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        //the messages will be broadcasted to all users.
+        //the Messages will be broadcasted to all users.
         UserData userData  = new UserData();
         userData.setCookies("");
         userData.setId("");
@@ -194,9 +194,9 @@ public class SocketHandler extends AbstractWebSocketHandler {
                         ResponseGiveMeContacters responseGiveMeContacters = new ResponseGiveMeContacters();
                         responseGiveMeContacters.setStatus(ResponseStatus.Failure);
                         responseGiveMeContacters.setType(ResponseType.BadData);
-                        if (session.isOpen()) {
-                            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(responseGiveMeContacters)));
-                        }
+                            if (session.isOpen()) {
+                                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(responseGiveMeContacters)));
+                            }
 
                     } catch (InterruptedException | ExecutionException e) {
                         ResponseGiveMeContacters responseGiveMeContacters = new ResponseGiveMeContacters();
