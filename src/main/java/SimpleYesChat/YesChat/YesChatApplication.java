@@ -18,6 +18,8 @@ public class YesChatApplication {
 
 		SpringApplication.run(YesChatApplication.class, args);
 
+
+
 	}
 
 

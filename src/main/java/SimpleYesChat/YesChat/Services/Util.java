@@ -1,9 +1,10 @@
-package SimpleYesChat.YesChat.config;
+package SimpleYesChat.YesChat.Services;
 
 import SimpleYesChat.YesChat.UserData.Contacter;
 import SimpleYesChat.YesChat.UserData.UserData;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -63,5 +64,19 @@ public class Util {
             e.printStackTrace();
         }
         return contacters;
+    }
+
+    public static boolean checkRes(ResponseEntity<String> entity) {
+        String body = entity.getBody();
+        String searchStr = "<div id=\"content\" class=\"span12\">";
+        int pos = body.indexOf(searchStr);
+        if (pos > -1) {
+            String srh = body.substring(pos + searchStr.length());
+            if(srh.contains("не совпадают.")){
+                return false;
+            }
+        }
+
+        return true;
     }
 }
