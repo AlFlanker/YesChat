@@ -1,9 +1,10 @@
 package SimpleYesChat.YesChat.Messages.answers;
 
-public class CallUpAnswer extends Answer {
+
+
+public class CallUpAnswer extends Message  {
     private String fromID;
-    private String dest;
-    private boolean isAnswerCall;
+    private StatusContacter statusContacter;
 
     public String getFromID() {
         return fromID;
@@ -13,19 +14,13 @@ public class CallUpAnswer extends Answer {
         this.fromID = fromID;
     }
 
-    public boolean isAnswerCall() {
-        return isAnswerCall;
+    public StatusContacter getStatusContacter() {
+        return statusContacter;
     }
 
-    public String getDest() {
-        return dest;
+    public void setStatusContacter(StatusContacter statusContacter) {
+        this.statusContacter = statusContacter;
     }
 
-    public void setDest(String dest) {
-        this.dest = dest;
-    }
 
-    public void setAnswerCall(boolean answerCall) {
-        isAnswerCall = answerCall;
-    }
 }

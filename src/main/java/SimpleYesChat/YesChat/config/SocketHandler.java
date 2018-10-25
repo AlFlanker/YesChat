@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -30,17 +31,18 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 @Component
 public class SocketHandler extends AbstractWebSocketHandler {
-    private static final String main_url = "https://ss77.ru/cgi-bin/main.cgi";
-    private static final String data_url = "https://ss77.ru/cgi-bin/choose_cg_yecomm.cgi";
-
+//    private static final String main_url = "https://ss77.ru/cgi-bin/main.cgi";
+//    private static final String data_url = "https://ss77.ru/cgi-bin/choose_cg_yecomm.cgi";
+    @Value("${url.main}")
+    private  String main_url;
+    @Value("${url.data}")
+    private  String data_url;
 
     Map<WebSocketSession, UserData> sessions = new ConcurrentHashMap<>();
 
@@ -67,6 +69,7 @@ public class SocketHandler extends AbstractWebSocketHandler {
     }
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message) {
+        log.info(main_url);
         YesChatMessages request = new Request();
         AuthAnswer authAnswer;
         log.info("session -> " + session.getId()  + ","+ "\n"+ "message: " + message.getPayload());
@@ -260,7 +263,7 @@ public class SocketHandler extends AbstractWebSocketHandler {
 
 
 
-    private void getAllContacters(GetAllUsersRequest request,WebSocketSession session){
+    private void getAllContacters(GetAllUsersRequest request, WebSocketSession session){
         AllUsersAnswer allUsersAnswer;
         try {
             ResponseEntity<String> response = restService.findData(UriComponentsBuilder.fromHttpUrl(data_url), sessions.get(session).getCookies()).get();
@@ -298,7 +301,7 @@ public class SocketHandler extends AbstractWebSocketHandler {
                 }
                 else{
                     CallUpAnswer answer = new CallUpAnswer();
-                    answer.setAnswerCall(false);
+                    answer.setStatusContacter(StatusContacter.OFFLINE);
                     answer.setDescription("user does't auth");
                     sendResponse(answer,session);
                 }
@@ -308,16 +311,16 @@ public class SocketHandler extends AbstractWebSocketHandler {
 
     private void callUp(CallUpAnswer request, WebSocketSession session) {
         Map.Entry<WebSocketSession,UserData> entry = sessions.entrySet().stream()
-                .filter(e->e.getValue().getId().equals(request.getDest()))
+                .filter(e->e.getValue().getId().equals(request.getToID()))
                 .findFirst().get();
         if(entry.getValue().isAuth()){
             sendResponse(request,entry.getKey());
         }
         else{
             CallUpAnswer call = new CallUpAnswer();
-            call.setAnswerCall(false);
+            call.setStatusContacter(StatusContacter.OFFLINE);
             call.setFromID(request.getFromID());
-            call.setDest(request.getDest());
+            call.setToID(request.getToID());
             sendResponse(call,session);
         }
     }
@@ -344,23 +347,19 @@ public class SocketHandler extends AbstractWebSocketHandler {
     private void sendAll() {
         objectMapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
         objectMapper.configure(JsonGenerator.Feature.QUOTE_FIELD_NAMES, false);
-        UsersChangeStatusNotification notification = new UsersChangeStatusNotification();
-        List<String> list;
+        UsersChangeStatusNotification notification;
         for (Map.Entry<WebSocketSession, UserData> entry : sessions.entrySet()) {
-            list = new ArrayList<String>();
             if(entry.getValue().isAuth()) {
                 for (Map.Entry<WebSocketSession, UserData> entry2 : sessions.entrySet()) {
                     if(entry2.getValue().isAuth() && entry2.getKey()!=entry.getKey()) {
-                        list.add((entry2.getValue().getId()));
+                        notification = new UsersChangeStatusNotification();
+                        notification.setIdContacter(entry2.getValue().getId());
+                        notification.setStatusContacter(StatusContacter.ONLINE);
+                        sendResponse(notification,entry.getKey());
                     }
                 }
             }
 
-            if (list.size() > 0 && entry.getKey().isOpen()) {
-                    notification.setListStatus(list);
-//                    entry.getKey().sendMessage(new TextMessage(objectMapper.writeValueAsString(list)));
-                    sendResponse(notification,entry.getKey());
-            }
         }
     }
 

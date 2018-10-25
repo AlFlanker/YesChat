@@ -1,6 +1,7 @@
 package SimpleYesChat.YesChat.Messages.answers;
 
-public class AuthAnswer extends Answer {
+
+public class AuthAnswer extends Message  {
     private StatusSS77Auth ss77Auth;
     private String whoAmI;
 
@@ -19,4 +20,5 @@ public class AuthAnswer extends Answer {
     public void setWhoAmI(String whoAmI) {
         this.whoAmI = whoAmI;
     }
+
 }

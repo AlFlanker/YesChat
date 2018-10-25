@@ -1,17 +1,27 @@
 package SimpleYesChat.YesChat.Messages.notifications;
 
 
-import java.util.List;
+import SimpleYesChat.YesChat.Messages.answers.StatusContacter;
 
-public class UsersChangeStatusNotification extends Notification{
-    private List<String> listStatus;
+public class UsersChangeStatusNotification extends Notification  {
+    StatusContacter statusContacter;
+    String idContacter;
 
-    public List<String> getListStatus() {
-        return listStatus;
+    public StatusContacter getStatusContacter() {
+        return statusContacter;
     }
 
-    public void setListStatus(List<String> listStatus) {
-        this.listStatus = listStatus;
+    public void setStatusContacter(StatusContacter statusContacter) {
+        this.statusContacter = statusContacter;
     }
+
+    public String getIdContacter() {
+        return idContacter;
+    }
+
+    public void setIdContacter(String idContacter) {
+        this.idContacter = idContacter;
+    }
+
+
 }
-
