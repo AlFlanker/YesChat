@@ -58,6 +58,7 @@ public class SocketHandler extends AbstractWebSocketHandler {
             log.info("\nNew Request {\n type:" + request.getClass().getSimpleName()+",\n"+"data: \n" + message.getPayload()+"\n}");
             ex.init((request));
             ex.execute(session);
+            log.warn(String.valueOf(ex.hashCode()));
         } catch (IOException e) {
             e.printStackTrace();
         }

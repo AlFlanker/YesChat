@@ -5,10 +5,12 @@ import SimpleYesChat.YesChat.Messages.YesChatMessages;
 import SimpleYesChat.YesChat.UserData.GlobalData;
 import SimpleYesChat.YesChat.UserData.UserData;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.util.Map;
+@Scope("prototype")
 @Component
 public class CallUpAnswer extends Message  {
 
