@@ -21,7 +21,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = UsersChangeStatusNotification.class),
         @JsonSubTypes.Type(value = AuthAnswer.class)
 })
-public abstract class YesChatMessages {
+public abstract class YesChatMessages implements Execute{
     private String description;
 
     public YesChatMessages() {
