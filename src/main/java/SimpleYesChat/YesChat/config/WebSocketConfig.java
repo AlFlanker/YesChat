@@ -24,6 +24,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
         log.info("-------->ServletServerContainerFactoryBean");
         return container;
     }
+
     @Bean
     public WebSocketHandler myHandler(){
         return new SocketHandler();

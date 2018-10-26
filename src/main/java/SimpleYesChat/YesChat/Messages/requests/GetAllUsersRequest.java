@@ -47,15 +47,17 @@ public class GetAllUsersRequest extends Request {
     public void init(YesChatMessages messages) {
         super.init(messages);
     }
+
     private void getAllContacters(WebSocketSession session){
         AllUsersAnswer allUsersAnswer;
         ObjectMapper objectMapper = new ObjectMapper();
         try {
             ResponseEntity<String> response = restService.findData(UriComponentsBuilder.fromHttpUrl(main_data), globalData.getSessions().get(session).getCookies()).get();
             String respBody = response.getBody();
-            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(
-                    Util.getContactersWithOnlineField(
-                            Util.getContactList(response.getBody()),globalData.getSessions()))));
+            allUsersAnswer = new AllUsersAnswer();
+            allUsersAnswer.setListOfContacters(Util.getContactersWithOnlineField(
+                    Util.getContactList(response.getBody()),globalData.getSessions()));
+            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(allUsersAnswer)));
             log.info("session -> " + session.getId() +"\n"+ " send list of contact to client->" + session.getRemoteAddress());
         }  catch (UnrecognizedPropertyException | JsonParseException exception ){
             allUsersAnswer = new AllUsersAnswer();
