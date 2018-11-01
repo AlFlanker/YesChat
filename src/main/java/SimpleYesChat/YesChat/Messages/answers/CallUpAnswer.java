@@ -53,16 +53,17 @@ public class CallUpAnswer extends Message  {
         Map.Entry<WebSocketSession, UserData> entry = globalData.getSessions().entrySet().stream()
                 .filter(e->e.getValue().getId().equals(request.getToID()))
                 .findFirst().get();
-        if(entry.getValue().isAuth()){
-            request.setFromID(globalData.getSessions().get(session).getId());
-            sendResponse(request,entry.getKey());
+        if(request.getStatusContacter()!=StatusContacter.BUSY || request.getStatusContacter()!=StatusContacter.OFFLINE) {
+                request.setFromID(globalData.getSessions().get(session).getId());
+                sendResponse(request, entry.getKey());
+                globalData.getSessions().get(session).setBusy(true);
         }
-        else{
+        else {
             CallUpAnswer call = new CallUpAnswer();
-            call.setStatusContacter(StatusContacter.OFFLINE);
+            call.setStatusContacter(request.getStatusContacter());
             call.setFromID(request.getFromID());
             call.setToID(request.getToID());
-            sendResponse(call,session);
+            sendResponse(call, session);
         }
     }
 

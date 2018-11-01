@@ -4,7 +4,7 @@ package SimpleYesChat.YesChat.Messages.requests;
 import SimpleYesChat.YesChat.Messages.YesChatMessages;
 import SimpleYesChat.YesChat.Messages.answers.AllUsersAnswer;
 import SimpleYesChat.YesChat.Services.RestService;
-import SimpleYesChat.YesChat.Services.Util;
+import SimpleYesChat.YesChat.Services.ServiceUtil;
 import SimpleYesChat.YesChat.UserData.GlobalData;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -36,6 +36,8 @@ public class GetAllUsersRequest extends Request {
     private RestService restService;
     @Autowired
     private GlobalData globalData;
+    @Autowired
+    private ServiceUtil serviceUtil;
     @Override
     public void execute(WebSocketSession session) {
        if(isAuth(session)) {
@@ -55,8 +57,8 @@ public class GetAllUsersRequest extends Request {
             ResponseEntity<String> response = restService.findData(UriComponentsBuilder.fromHttpUrl(main_data), globalData.getSessions().get(session).getCookies()).get();
             String respBody = response.getBody();
             allUsersAnswer = new AllUsersAnswer();
-            allUsersAnswer.setListOfContacters(Util.getContactersWithOnlineField(
-                    Util.getContactList(response.getBody()),globalData.getSessions()));
+            allUsersAnswer.setListOfContacters(serviceUtil.getContactersWithOnlineField(
+                    serviceUtil.getContactList(response.getBody())));
             session.sendMessage(new TextMessage(objectMapper.writeValueAsString(allUsersAnswer)));
             log.info("session -> " + session.getId() +"\n"+ " send list of contact to client->" + session.getRemoteAddress());
         }  catch (UnrecognizedPropertyException | JsonParseException exception ){

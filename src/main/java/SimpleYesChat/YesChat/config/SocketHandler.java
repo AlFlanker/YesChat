@@ -17,6 +17,7 @@ import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.socket.*;
 import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 
@@ -56,13 +57,18 @@ public class SocketHandler extends AbstractWebSocketHandler {
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message) {
         YesChatMessages request;
+
+        long time;
         try {
+            time = System.currentTimeMillis();
             request = RequestDecoder(message);
             Execute ex = beanFactory.getBean(request.getClass());
             log.info("\nNew Request {\n type:" + request.getClass().getSimpleName() + ",\n" + "data: \n" + message.getPayload() + "\n}");
             ex.init((request));
             ex.execute(session);
-            log.warn(String.valueOf(ex.hashCode()));
+            log.warn("\nSession: " + session.toString() + "\nBeans hashCode:" + String.valueOf(ex.hashCode()));
+            time = System.currentTimeMillis() - time;
+            log.info("\nSession: " + session.toString() + "\ntime for execute - " +request.getClass().getSimpleName() + " "+ time + " ms");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -95,7 +101,7 @@ public class SocketHandler extends AbstractWebSocketHandler {
 
         log.info("ConnectionClosed -> " + session.toString() + "\n" + "user ID = " + globalData.getSessions().get(session).getId() + "\n" + "status:" + status.toString());
         if (globalData.getSessions().containsKey(session)) {
-            globalData.getSessions().remove(session);
+            globalData.getSessions().get(session).setAuth(false);
         }
         updateStatus();
     }
@@ -125,10 +131,10 @@ public class SocketHandler extends AbstractWebSocketHandler {
         for (Map.Entry<WebSocketSession, UserData> entry : globalData.getSessions().entrySet()) {
             if (entry.getValue().isAuth()) {
                 for (Map.Entry<WebSocketSession, UserData> entry2 : globalData.getSessions().entrySet()) {
-                    if (entry2.getValue().isAuth() && entry2.getKey() != entry.getKey()) {
+                    if ((!StringUtils.isEmpty(entry2.getValue().getId())) && (entry2.getKey() != entry.getKey())) {
                         notification = new UsersChangeStatusNotification();
                         notification.setIdContacter(entry2.getValue().getId());
-                        notification.setStatusContacter(StatusContacter.ONLINE);
+                        notification.setStatusContacter(entry2.getValue().isAuth()?StatusContacter.ONLINE:StatusContacter.OFFLINE);
                         sendResponse(notification, entry.getKey());
                     }
                 }

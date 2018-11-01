@@ -1,5 +1,7 @@
 package SimpleYesChat.YesChat.UserData;
 
+import SimpleYesChat.YesChat.Messages.answers.StatusContacter;
+
 public class Contacter {
 //    @JsonIgnore
     private String id;
@@ -8,7 +10,7 @@ public class Contacter {
     private String step;
     private String trmode;
     private String raiting;
-    private boolean isOnline;
+    private StatusContacter isOnline;
 
     public String getName() {
 
@@ -59,12 +61,12 @@ public class Contacter {
         this.id = id;
     }
 
-    public boolean isOnline() {
+    public StatusContacter getIsOnline() {
         return isOnline;
     }
 
-    public void setOnline(boolean online) {
-        isOnline = online;
+    public void setIsOnline(StatusContacter isOnline) {
+        this.isOnline = isOnline;
     }
 
     public Contacter() {

@@ -64,19 +64,22 @@ public class CallToRequest extends Request  {
     }
 
     protected void callTo( CallToRequest callToRequest,WebSocketSession session){
-        for(Map.Entry<WebSocketSession, UserData> entry:globalData.getSessions().entrySet()){
-            if(entry.getValue().getId().equals(callToRequest.getToID())){
-                if(entry.getValue().isAuth()){
-                    callToRequest.setFromID(globalData.getSessions().get(session).getId());
-                    sendResponse(callToRequest,entry.getKey());
-                }
-                else{
-                    CallUpAnswer answer = new CallUpAnswer();
-                    answer.setStatusContacter(StatusContacter.OFFLINE);
-                    answer.setDescription("user does't auth");
-                    sendResponse(answer,session);
-                }
+        for(Map.Entry<WebSocketSession, UserData> entry:globalData.getSessions().entrySet()) {
+            if (entry.getValue().getId().equals(callToRequest.getToID())) {
+                callToRequest.setFromID(globalData.getSessions().get(session).getId());
+                sendResponse(callToRequest, entry.getKey());
+                globalData.getSessions().get(session).setBusy(true);
+                return;
             }
         }
-    }
+
+                CallUpAnswer answer = new CallUpAnswer();
+                answer.setStatusContacter(StatusContacter.OFFLINE);
+                answer.setDescription("user does't auth");
+                answer.setToID(callToRequest.getToID());
+                sendResponse(answer,session);
+                return;
+
+        }
+
 }

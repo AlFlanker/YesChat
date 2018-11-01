@@ -2,6 +2,7 @@ package SimpleYesChat.YesChat.Messages;
 
 import SimpleYesChat.YesChat.Messages.answers.AllUsersAnswer;
 import SimpleYesChat.YesChat.Messages.answers.AuthAnswer;
+import SimpleYesChat.YesChat.Messages.answers.CallResultAnswer;
 import SimpleYesChat.YesChat.Messages.answers.CallUpAnswer;
 import SimpleYesChat.YesChat.Messages.notifications.UsersChangeStatusNotification;
 import SimpleYesChat.YesChat.Messages.requests.AuthRequest;
@@ -19,7 +20,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = AllUsersAnswer.class),
         @JsonSubTypes.Type(value = CallUpAnswer.class),
         @JsonSubTypes.Type(value = UsersChangeStatusNotification.class),
-        @JsonSubTypes.Type(value = AuthAnswer.class)
+        @JsonSubTypes.Type(value = AuthAnswer.class),
+        @JsonSubTypes.Type(value = CallResultAnswer.class)
 })
 public abstract class YesChatMessages implements Execute{
     private String description;

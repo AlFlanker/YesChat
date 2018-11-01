@@ -5,7 +5,7 @@ import SimpleYesChat.YesChat.Messages.YesChatMessages;
 import SimpleYesChat.YesChat.Messages.answers.AuthAnswer;
 import SimpleYesChat.YesChat.Messages.answers.StatusSS77Auth;
 import SimpleYesChat.YesChat.Services.RestService;
-import SimpleYesChat.YesChat.Services.Util;
+import SimpleYesChat.YesChat.Services.ServiceUtil;
 import SimpleYesChat.YesChat.UserData.GlobalData;
 import SimpleYesChat.YesChat.UserData.UserData;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,10 +21,11 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 @Scope("prototype")
 @Component
-public class AuthRequest extends Request  {
+public class AuthRequest extends Request {
 
 
     private String login;
@@ -41,6 +42,9 @@ public class AuthRequest extends Request  {
 
     @Autowired
     private RestService restService;
+
+    @Autowired
+    private ServiceUtil serviceUtil;
 
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -72,9 +76,10 @@ public class AuthRequest extends Request  {
 
     @Override
     public void init(YesChatMessages messages) {
-        this.login = ((AuthRequest)messages).login;
-        this.pass = ((AuthRequest)messages).pass;
+        this.login = ((AuthRequest) messages).login;
+        this.pass = ((AuthRequest) messages).pass;
     }
+
     @Override
     public void execute(WebSocketSession session) {
         authentication(session);
@@ -90,36 +95,39 @@ public class AuthRequest extends Request  {
     }
 
     private void authentication(WebSocketSession session) {
-        log.info("session -> " + session.getId() + ","+"\n"+ "request auth:-> \n" + "{\n" + "login:" + this.login + "\n , pass:" + this.pass + "\n}");
+        log.info("session -> " + session.getId() + "," + "\n" + "request auth:-> \n" + "{\n" + "login:" + this.login + "\n , pass:" + this.pass + "\n}");
         String cookies = null;
-        AuthAnswer authAnswer ;
+        AuthAnswer authAnswer;
         boolean auth = false;
+        UserData userData = new UserData();
+        userData.setLogin(this.login);
+        userData.setPass(this.pass);
+        Map.Entry<WebSocketSession,UserData> entry;
+        entry = isUserAlreadyExist(userData);
+        if(entry!=null){
+            log.warn("\nsession -> " + session.getId() + "\n clean old data -> \n" + entry.getKey().getId());
+            globalData.getSessions().remove(entry.getKey());
+            globalData.getSessions().put(session,new UserData());
+
+        }
         UriComponentsBuilder builder = getUrl();
         try {
             ResponseEntity<String> entity = restService.sendCommand(builder).get();
-            if(!Util.checkRes(entity)){
+            if (!serviceUtil.checkRes(entity)) {
                 authAnswer = new AuthAnswer();
                 authAnswer.setWhoAmI(globalData.getSessions().get(session).getId());
                 authAnswer.setSs77Auth(StatusSS77Auth.AUTH_DATA_INCORRECT);
-                sendResponse(authAnswer,session);
+                sendResponse(authAnswer, session);
                 return;
             }
             HttpHeaders httpHeaders = entity.getHeaders();
             cookies = httpHeaders.getFirst(httpHeaders.SET_COOKIE);
-        }
-        catch (InterruptedException e) {
+        } catch (InterruptedException | ExecutionException e) {
             log.error("authentication failed");
             authAnswer = new AuthAnswer();
             authAnswer.setWhoAmI(globalData.getSessions().get(session).getId());
             authAnswer.setSs77Auth(StatusSS77Auth.AUTH_DATA_INCORRECT);
-            sendResponse(authAnswer,session);
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            log.error("authentication failed");
-            authAnswer = new AuthAnswer();
-            authAnswer.setWhoAmI(globalData.getSessions().get(session).getId());
-            authAnswer.setSs77Auth(StatusSS77Auth.AUTH_DATA_INCORRECT);
-            sendResponse(authAnswer,session);
+            sendResponse(authAnswer, session);
             e.printStackTrace();
         }
         try {
@@ -127,37 +135,48 @@ public class AuthRequest extends Request  {
                 UserData ud = globalData.getSessions().get(session);
                 ud.setCookies(cookies);
                 ResponseEntity<String> tmp = restService.findData(UriComponentsBuilder.fromHttpUrl("https://ss77.ru/cgi-bin/main.cgi"), cookies).get();
-                String id = Util.getId(tmp.getBody(), this.login);
+                String id = serviceUtil.getId(tmp.getBody(), this.login);
                 ud.setId(id);
+                ud.setLogin(this.login);
+                ud.setPass(this.pass);
                 ud.setAuth(true);
+
                 globalData.getSessions().put(session, ud);
             }
 
-        } catch (InterruptedException e) {
+        } catch (InterruptedException | ExecutionException e) {
             log.error("failed to get id");
             authAnswer = new AuthAnswer();
             authAnswer.setWhoAmI(globalData.getSessions().get(session).getId());
             authAnswer.setSs77Auth(StatusSS77Auth.SS77_NOT_AVAILABLE);
-            sendResponse(authAnswer,session);
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            log.error("failed to get id");
-            authAnswer = new AuthAnswer();
-            authAnswer.setWhoAmI(globalData.getSessions().get(session).getId());
-            authAnswer.setSs77Auth(StatusSS77Auth.SS77_NOT_AVAILABLE);
-            sendResponse(authAnswer,session);
+            sendResponse(authAnswer, session);
             e.printStackTrace();
         }
 
-        log.info("session -> " + session.getId() + ","+"\n"+"request auth result: cookies = " + cookies);
-        log.info("session -> " + session.getId() + ","+"\n"+"request auth result:" +
+        log.info("\nsession -> " + session.getId() + "," + "\n" + "request auth result: cookies = " + cookies);
+        log.info("\nsession -> " + session.getId() + "," + "\n" + "request auth result:" +
                 "user with " + "login:" + this.login + " get id->" + globalData.getSessions().get(session).getId());
         authAnswer = new AuthAnswer();
         authAnswer.setWhoAmI(globalData.getSessions().get(session).getId());
         authAnswer.setSs77Auth(StatusSS77Auth.OK);
-        sendResponse(authAnswer,session);
+        sendResponse(authAnswer, session);
         sendAll();
     }
+
+    private Map.Entry<WebSocketSession,UserData> isUserAlreadyExist(UserData userData) {
+
+//        for(Map.Entry<WebSocketSession,UserData> m: globalData.getSessions().entrySet()){
+//            if(m.getValue().equals(userData)){
+//                return m;
+//            }
+//        }
+//        return null;
+
+        return globalData.getSessions().entrySet().stream().filter(e->e.getValue().equals(userData)).findFirst().orElse(null);
+
+    }
+
+
 
 
 

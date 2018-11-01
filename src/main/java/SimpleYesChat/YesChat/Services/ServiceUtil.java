@@ -1,10 +1,14 @@
 package SimpleYesChat.YesChat.Services;
 
+import SimpleYesChat.YesChat.Messages.answers.StatusContacter;
 import SimpleYesChat.YesChat.UserData.Contacter;
+import SimpleYesChat.YesChat.UserData.GlobalData;
 import SimpleYesChat.YesChat.UserData.UserData;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -13,12 +17,13 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+@Service
+public class ServiceUtil {
 
-public class Util {
+    @Autowired
+    private GlobalData globalData;
 
-
-    public static String getId(String list, String email) {
+    public  String getId(String list, String email) {
         int pos = list.indexOf("<span>" + email + " .... ID");
         if (pos > -1) {
             String srh = list.substring(pos);
@@ -32,21 +37,29 @@ public class Util {
         }
         return "";
     }
-
-    public static List<Contacter> getContactersWithOnlineField(List<Contacter> list,Map<WebSocketSession, UserData> session) {
-        for (Map.Entry<WebSocketSession, UserData> entry : session.entrySet()) {
-            list.stream()
-                    .filter(a -> a.getId().equals(entry.getValue().getId()))
-                    .map(elem -> {
-                        elem.setOnline(true);
-                        return elem;
-                    })
-                    .collect(Collectors.toList());
+//    @Async
+    public  List<Contacter> getContactersWithOnlineField(List<Contacter> list) {
+        for (Map.Entry<WebSocketSession, UserData> entry : globalData.getSessions().entrySet()) {
+            for(Contacter contacter: list){
+                if(contacter.getId().equals(entry.getValue().getId())){
+                    contacter.setIsOnline(StatusContacter.ONLINE);
+                }
+                else{
+                    contacter.setIsOnline(StatusContacter.OFFLINE);
+                }
+            }
+//            list.stream()
+//                    .filter(a -> a.getId().equals(entry.getValue().getId()))
+//                    .map(elem -> {
+//                        elem.setIsOnline(StatusContacter.ONLINE);
+//                        return elem;
+//                    })
+//                    .collect(Collectors.toList());
         }
         return list;
     }
 
-    public static List<Contacter> getContactList(String data) {
+    public  List<Contacter> getContactList(String data) {
         ObjectMapper objectMapper = new ObjectMapper();
         List<Contacter> contacters = new ArrayList<Contacter>();
         String fieldName;
@@ -66,7 +79,7 @@ public class Util {
         return contacters;
     }
 
-    public static boolean checkRes(ResponseEntity<String> entity) {
+    public  boolean checkRes(ResponseEntity<String> entity) {
         String body = entity.getBody();
         String searchStr = "<div id=\"content\" class=\"span12\">";
         int pos = body.indexOf(searchStr);

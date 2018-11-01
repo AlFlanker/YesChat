@@ -16,6 +16,7 @@ function disconnect() {
 
 function sendName() {
     ws.send($("#name").val());
+
 }
 
 function showGreeting(message) {
