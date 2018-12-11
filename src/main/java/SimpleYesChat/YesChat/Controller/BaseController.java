@@ -18,7 +18,10 @@ public class BaseController {
     public String list(){
        return "debug_page";
     }
-
+//    @GetMapping("/")
+//    public String main(){
+//        return "index";
+//    }
 
 
 }

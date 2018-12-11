@@ -1,9 +1,12 @@
 package SimpleYesChat.YesChat.Messages.answers;
 
-
 import SimpleYesChat.YesChat.Messages.YesChatMessages;
 import SimpleYesChat.YesChat.UserData.GlobalData;
 import SimpleYesChat.YesChat.UserData.UserData;
+import SimpleYesChat.YesChat.domain.ChatMessage;
+import SimpleYesChat.YesChat.domain.MessageRepo;
+import SimpleYesChat.YesChat.domain.User;
+import SimpleYesChat.YesChat.domain.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -14,20 +17,21 @@ import java.util.Optional;
 
 @Scope("prototype")
 @Component
-public class CallUpAnswer extends Message  {
+public class TextMessageAnswer extends Message {
+    @Override
+    public void init(YesChatMessages messages) {
+
+    }
 
     @Autowired
     private GlobalData globalData;
-
-    @Override
-    public void init(YesChatMessages messages) {
-        this.fromID = ((CallUpAnswer)messages).fromID;
-        this.result = ((CallUpAnswer)messages).result;
-        this.toID =  ((CallUpAnswer)messages).toID;
-    }
+    @Autowired
+    private MessageRepo messageRepo;
+    @Autowired
+    private UserRepo userRepo;
 
     private String fromID;
-    private CallResult result;
+    private long messageID;
 
     public String getFromID() {
         return fromID;
@@ -37,41 +41,45 @@ public class CallUpAnswer extends Message  {
         this.fromID = fromID;
     }
 
-    public CallResult getResult() {
-        return result;
+    public long getMessageID() {
+        return messageID;
     }
 
-    public void setResult(CallResult result) {
-        this.result = result;
+    public void setMessageID(long messageID) {
+        this.messageID = messageID;
     }
 
     @Override
     public void execute(WebSocketSession session) {
-        callUp(this,session);
+        answerMessage(this,session);
 
     }
-    protected void callUp(CallUpAnswer request, WebSocketSession session) {
+    protected void answerMessage(TextMessageAnswer request, WebSocketSession session) {
         if(!isAuth(session)){
             return;
         }
+        request.setFromID(globalData.getSessions().get(session).getId());
         Optional<Map.Entry<WebSocketSession, UserData>> entry;
         if((entry = globalData.getSessions().entrySet().stream()
                 .filter(e->e.getValue().getId().equals(request.getToID()))
                 .findFirst()).isPresent()){
-            switch (request.result){
-                case HANGUP:
-                    globalData.getSessions().get(session).setBusy(false);
-                    entry.get().getValue().setBusy(false);
-                    sendResponse(request, entry.get().getKey());
-                    break;
-                case CONNECT:
-                    request.setFromID(globalData.getSessions().get(session).getId());
-                    sendResponse(request, entry.get().getKey());
-                    globalData.getSessions().get(session).setBusy(true);
-                    break;
+                    UserData ud = entry.get().getValue();
+                    User user = userRepo.findByUsername(ud.getLogin());
+                    if(user!=null){
+                        ChatMessage message = messageRepo.findById(messageID);
+                        if(message!=null){
+                            message.setReceived(true);
+                            messageRepo.save(message);
+                            sendResponse(request, entry.get().getKey());
+                        }
+
+                    }
+
+
+
             }
         }
-    }
+
 
     protected boolean isAuth(WebSocketSession session){
         if(!globalData.getSessions().get(session).isAuth()){
@@ -82,5 +90,4 @@ public class CallUpAnswer extends Message  {
         }
         return true;
     }
-
 }

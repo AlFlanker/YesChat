@@ -13,11 +13,13 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
+import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.context.support.GenericWebApplicationContext;
 import org.springframework.web.socket.*;
 import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 
@@ -29,13 +31,19 @@ import java.util.Map;
 @Scope("session")
 @Component
 public class SocketHandler extends AbstractWebSocketHandler {
-
-
-    @Autowired
     private GlobalData globalData;
+    private GenericWebApplicationContext context;
+    @Autowired
+     private SessionRegistry sessionRegistry;
 
     @Autowired
-    BeanFactory beanFactory;
+    public void setGlobalData(GlobalData globalData) {
+        this.globalData = globalData;
+    }
+    @Autowired
+    public void setContext(GenericWebApplicationContext context) {
+        this.context = context;
+    }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -55,16 +63,29 @@ public class SocketHandler extends AbstractWebSocketHandler {
     }
 
     @Override
-    public void handleTextMessage(WebSocketSession session, TextMessage message) {
+    public void handleTextMessage(WebSocketSession session, TextMessage message)  {
         YesChatMessages request;
-
         long time;
+//        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> log.error(e.getMessage()));
+//        ObjectMapper objectMapper = new ObjectMapper();
+//        objectMapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
+//        objectMapper.configure(JsonGenerator.Feature.QUOTE_FIELD_NAMES, false);
+//        RequestTextMessage t = new RequestTextMessage();
+//        t.setDateTime(LocalDateTime.now());
+//        try {
+//            String y = objectMapper.writeValueAsString(t);
+//            log.info(y);
+//        } catch (JsonProcessingException e) {
+//            e.printStackTrace();
+//        }
+
         try {
             time = System.currentTimeMillis();
             request = RequestDecoder(message);
-            Execute ex = beanFactory.getBean(request.getClass());
+            Execute ex = context.getBean(request.getClass());
+            BeanUtils.copyProperties(request,ex);
             log.info("\nNew Request {\n type:" + request.getClass().getSimpleName() + ",\n" + "data: \n" + message.getPayload() + "\n}");
-            ex.init((request));
+//            ex.init((request));
             ex.execute(session);
             log.warn("\nSession: " + session.toString() + "\nBeans hashCode:" + String.valueOf(ex.hashCode()));
             time = System.currentTimeMillis() - time;
@@ -72,11 +93,16 @@ public class SocketHandler extends AbstractWebSocketHandler {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        catch (Exception e){
+            e.printStackTrace();
+        }
+
     }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         UserData userData = new UserData();
+
         userData.setCookies("");
         userData.setId("");
         userData.setAuth(false);
@@ -104,6 +130,7 @@ public class SocketHandler extends AbstractWebSocketHandler {
             globalData.getSessions().get(session).setAuth(false);
         }
         updateStatus();
+        globalData.getSessions().remove(session);
     }
 
     @Override
@@ -157,4 +184,5 @@ public class SocketHandler extends AbstractWebSocketHandler {
 
         }
     }
+
 }

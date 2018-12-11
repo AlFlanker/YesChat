@@ -20,20 +20,34 @@ public class CallResultAnswer extends Message  {
 
     @Override
     public void execute(WebSocketSession session) {
-        Map.Entry<WebSocketSession, UserData> entry = globalData.getSessions().entrySet().stream()
-                .filter(e->e.getValue().getId().equals(this.getToID()))
-                .findFirst().get();
-        Optional<WebSocketSession> socketSession = globalData.getSessions().entrySet()
-                .stream().filter(e -> e.getValue().equals(this.toID))
-                .map(e -> {
-                    return e.getKey();
-                })
-                .findFirst();
-        if(socketSession.isPresent()){
-            globalData.getSessions().get(socketSession.get()).setBusy(false);
+        if(!isAuth(session)){
+            return;
         }
-        globalData.getSessions().get(session).setBusy(false);
-        sendResponse(this,entry.getKey());
+        if(this.callResult.equals(CallResult.HANGUP)) {
+            Map.Entry<WebSocketSession, UserData> entry = globalData.getSessions().entrySet().stream()
+                    .filter(e -> e.getValue().getId().equals(this.getToID()))
+                    .findFirst().get();
+            Optional<WebSocketSession> socketSession = globalData.getSessions().entrySet()
+                    .stream().filter(e -> e.getValue().equals(this.toID))
+                    .map(e -> {
+                        return e.getKey();
+                    })
+                    .findFirst();
+            if (socketSession.isPresent()) {
+                globalData.getSessions().get(socketSession.get()).setBusy(false);
+            }
+            globalData.getSessions().get(session).setBusy(false);
+            sendResponse(this, entry.getKey());
+        }
+    }
+    protected boolean isAuth(WebSocketSession session){
+        if(!globalData.getSessions().get(session).isAuth()){
+            Answer answer = new Answer();
+            answer.setDescription("please sign up");
+            sendResponse(answer,session);
+            return false;
+        }
+        return true;
     }
 
     @Override

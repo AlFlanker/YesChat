@@ -10,7 +10,7 @@ public class Contacter {
     private String step;
     private String trmode;
     private String raiting;
-    private StatusContacter isOnline;
+    private StatusContacter isOnline = StatusContacter.OFFLINE;
 
     public String getName() {
 

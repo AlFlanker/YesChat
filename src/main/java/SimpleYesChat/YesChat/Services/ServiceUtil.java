@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -17,7 +17,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-@Service
+import java.util.stream.Collectors;
+
+@Component
 public class ServiceUtil {
 
     @Autowired
@@ -39,22 +41,23 @@ public class ServiceUtil {
     }
 //    @Async
     public  List<Contacter> getContactersWithOnlineField(List<Contacter> list) {
+//        for (Map.Entry<WebSocketSession, UserData> entry : globalData.getSessions().entrySet()) {
+//            for(Contacter contacter: list){
+//                if(contacter.getId().equals(entry.getValue().getId())){
+//                    contacter.setIsOnline(StatusContacter.ONLINE);
+//                }
+//                else{
+//                    contacter.setIsOnline(StatusContacter.OFFLINE);
+//                }
+//            }
         for (Map.Entry<WebSocketSession, UserData> entry : globalData.getSessions().entrySet()) {
-            for(Contacter contacter: list){
-                if(contacter.getId().equals(entry.getValue().getId())){
-                    contacter.setIsOnline(StatusContacter.ONLINE);
-                }
-                else{
-                    contacter.setIsOnline(StatusContacter.OFFLINE);
-                }
-            }
-//            list.stream()
-//                    .filter(a -> a.getId().equals(entry.getValue().getId()))
-//                    .map(elem -> {
-//                        elem.setIsOnline(StatusContacter.ONLINE);
-//                        return elem;
-//                    })
-//                    .collect(Collectors.toList());
+            list.stream()
+                    .filter(a -> a.getId().equals(entry.getValue().getId()))
+                    .map(elem -> {
+                        elem.setIsOnline(StatusContacter.ONLINE);
+                        return elem;
+                    })
+                    .collect(Collectors.toList());
         }
         return list;
     }
@@ -71,6 +74,7 @@ public class ServiceUtil {
                 fieldName = it.next();
                 Contacter contacter = objectMapper.readValue(cont.get(fieldName).toString(), Contacter.class);
                 contacter.setId(fieldName);
+                contacter.setIsOnline(StatusContacter.OFFLINE);
                 contacters.add(contacter);
             }
         } catch (IOException e) {

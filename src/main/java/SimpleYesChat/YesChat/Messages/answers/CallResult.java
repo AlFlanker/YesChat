@@ -1,5 +1,5 @@
 package SimpleYesChat.YesChat.Messages.answers;
 
 public enum CallResult {
-    HANGUP
+    HANGUP,CONNECT,BUSY,OFFLINE
 }

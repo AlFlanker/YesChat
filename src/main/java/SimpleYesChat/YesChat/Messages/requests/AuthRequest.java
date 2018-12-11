@@ -6,8 +6,10 @@ import SimpleYesChat.YesChat.Messages.answers.AuthAnswer;
 import SimpleYesChat.YesChat.Messages.answers.StatusSS77Auth;
 import SimpleYesChat.YesChat.Services.RestService;
 import SimpleYesChat.YesChat.Services.ServiceUtil;
+import SimpleYesChat.YesChat.Services.UserService;
 import SimpleYesChat.YesChat.UserData.GlobalData;
 import SimpleYesChat.YesChat.UserData.UserData;
+import SimpleYesChat.YesChat.domain.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +38,8 @@ public class AuthRequest extends Request {
     @Value("${url.data}")
     private String main_data;
 
-
+    @Autowired
+    private UserService userService;
     @Autowired
     private GlobalData globalData;
 
@@ -128,7 +131,7 @@ public class AuthRequest extends Request {
             authAnswer.setWhoAmI(globalData.getSessions().get(session).getId());
             authAnswer.setSs77Auth(StatusSS77Auth.AUTH_DATA_INCORRECT);
             sendResponse(authAnswer, session);
-            e.printStackTrace();
+            log.error(e.getMessage());
         }
         try {
             if (!StringUtils.isEmpty(cookies)) {
@@ -140,7 +143,8 @@ public class AuthRequest extends Request {
                 ud.setLogin(this.login);
                 ud.setPass(this.pass);
                 ud.setAuth(true);
-
+                User user =userService.addNewUser(ud);
+                userService.login(ud);
                 globalData.getSessions().put(session, ud);
             }
 
@@ -150,7 +154,7 @@ public class AuthRequest extends Request {
             authAnswer.setWhoAmI(globalData.getSessions().get(session).getId());
             authAnswer.setSs77Auth(StatusSS77Auth.SS77_NOT_AVAILABLE);
             sendResponse(authAnswer, session);
-            e.printStackTrace();
+            log.error(e.getMessage());
         }
 
         log.info("\nsession -> " + session.getId() + "," + "\n" + "request auth result: cookies = " + cookies);
