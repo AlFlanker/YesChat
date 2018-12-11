@@ -6,7 +6,6 @@ import SimpleYesChat.YesChat.UserData.GlobalData;
 import SimpleYesChat.YesChat.UserData.UserData;
 import SimpleYesChat.YesChat.domain.ChatMessage;
 import SimpleYesChat.YesChat.domain.MessageRepo;
-import SimpleYesChat.YesChat.domain.User;
 import SimpleYesChat.YesChat.domain.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
@@ -30,9 +29,8 @@ public class GetAllNotReceivedMessages  extends Request {
         NotReceivedMessagesAnswer answer = new NotReceivedMessagesAnswer();
         UserData ud = globalData.getSessions().get(session);
         if (ud != null) {
-            User user = userRepo.findByUsername(ud.getLogin());
-            if (user != null) {
-                List<ChatMessage> messages = messageRepo.findByIsReceived(false);
+
+                List<ChatMessage> messages = messageRepo.findByIsReceivedAndAndDest(false,ud.getId());
                 if(messages!=null) {
                     answer.setMessages(messages);
                     sendResponse(answer, session);
@@ -41,7 +39,7 @@ public class GetAllNotReceivedMessages  extends Request {
                     }
                     messageRepo.saveAll(messages);
                 }
-            }
+
 
         }
     }

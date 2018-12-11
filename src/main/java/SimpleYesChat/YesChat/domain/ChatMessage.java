@@ -33,7 +33,7 @@ public class ChatMessage {
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     private User owner;
-    @JsonIgnore
+
     private String dest;
     public long getId() {
         return id;

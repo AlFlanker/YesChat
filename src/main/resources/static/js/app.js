@@ -1,5 +1,6 @@
 function connect() {
-    ws = new WebSocket('ws://localhost:8080/test');
+    // ws = new WebSocket('ws://localhost:8080/test');
+    ws = new WebSocket('ws://188.225.32.238:9000/test');
     ws.onmessage = function(data){
         showGreeting(data.data);
     }

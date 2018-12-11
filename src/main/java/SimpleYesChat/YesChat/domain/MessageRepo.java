@@ -7,4 +7,5 @@ import java.util.List;
 public interface MessageRepo  extends JpaRepository<ChatMessage, Long> {
      ChatMessage findById(long id);
      List<ChatMessage> findByIsReceived(boolean check);
+     List<ChatMessage> findByIsReceivedAndAndDest(boolean check,String dest);
 }
