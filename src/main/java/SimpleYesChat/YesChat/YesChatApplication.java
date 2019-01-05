@@ -36,7 +36,7 @@ public class YesChatApplication {
 		executor.setCorePoolSize(10);
 		executor.setMaxPoolSize(20);
 		executor.setQueueCapacity(50);
-		executor.setThreadNamePrefix("restRequest-");
+		executor.setThreadNamePrefix("ss77_request-");
 		executor.initialize();
 		return executor;
 	}
