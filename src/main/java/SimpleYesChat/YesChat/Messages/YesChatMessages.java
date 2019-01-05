@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = GetAllNotReceivedMessages.class),
         @JsonSubTypes.Type(value = AuthAnswer.class),
         @JsonSubTypes.Type(value = RequestTextMessage.class),
+        @JsonSubTypes.Type(value = RequestCallDate.class),
         @JsonSubTypes.Type(value = NotReceivedMessagesAnswer.class),
         @JsonSubTypes.Type(value = CallResultAnswer.class)
 })

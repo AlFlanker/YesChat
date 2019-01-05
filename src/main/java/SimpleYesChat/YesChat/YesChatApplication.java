@@ -33,9 +33,9 @@ public class YesChatApplication {
 	@Bean
 	public Executor asyncExecutor() {
 		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-		executor.setCorePoolSize(50);
-		executor.setMaxPoolSize(60);
-		executor.setQueueCapacity(500);
+		executor.setCorePoolSize(10);
+		executor.setMaxPoolSize(20);
+		executor.setQueueCapacity(50);
 		executor.setThreadNamePrefix("restRequest-");
 		executor.initialize();
 		return executor;
